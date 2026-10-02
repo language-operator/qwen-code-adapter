@@ -1,33 +1,34 @@
-# opencode-adapter
+# qwen-code-adapter
 
-The **opencode** runtime for the [Language Operator](https://github.com/language-operator/language-operator),
-running as a native Kubernetes workload.
+The **Qwen Code** runtime for the [Language Operator](https://github.com/language-operator/language-operator),
+running as a native Kubernetes workload. Created from the `opencode-adapter` template.
 
-It builds the runtime image and the Helm chart that registers the `opencode`
-`LanguageAgentRuntime`. The opencode TUI runs inside tmux and is fronted by an
-xterm.js / WebSocket terminal in the browser, so working with the agent feels like
-a real terminal session.
+It builds the runtime image and the Helm chart that registers the `qwen-code`
+`LanguageAgentRuntime`. The [Qwen Code](https://github.com/QwenLM/qwen-code) TUI runs
+inside tmux and is fronted by an xterm.js / WebSocket terminal in the browser, so
+working with the agent feels like a real terminal session.
+
+> **Status:** early. The TUI talks to the model gateway, but MCP tools and agent
+> instructions are not wired yet —
+> that is [#1](https://github.com/language-operator/qwen-code-adapter/issues/1).
 
 ## Architecture
 
 The image is [`coding-runtime`](https://github.com/language-operator/coding-runtime)
-plus the opencode CLI. The base owns the OS layer, the web terminal (xterm.js over
-a node-pty WebSocket bridge, with a cross-origin guard and a 25s keepalive), `tini`,
-and the ETL that turns the operator's `/etc/agent/config.yaml` into a normalized
-config. What lives here is the three files that describe opencode to it:
+plus the Qwen Code CLI (`qwen`). The base owns the OS layer, the web terminal
+(xterm.js over a node-pty WebSocket bridge, with a cross-origin guard and a 25s
+keepalive), `tini`, and the ETL that turns the operator's `/etc/agent/config.yaml`
+into a normalized config. What lives here is the three files that describe Qwen Code
+to it:
 
-- **`runtime.json`** — the manifest: where config goes (`$STATE_DIR/opencode`),
-  the serving surface, and how tmux launches the TUI.
-- **`emit.mjs`** — the emitter: normalized config → `opencode.jsonc` (provider,
-  model, MCP servers). Agent **instructions** are written to `instructions.md` and
-  referenced from opencode's `instructions` field, so they load as standing context
-  for every session — no async seeding, no timing.
-- **`launch-opencode.sh`** — what tmux runs. The base has already set the working
+- **`runtime.json`** — the manifest: where config goes (`QWEN_HOME`, set to
+  `$STATE_DIR/qwen-code`), the serving surface, and how tmux launches the TUI.
+- **`emit.mjs`** — the emitter: normalized config → `$QWEN_HOME/settings.json`. The
+  gateway becomes Qwen Code's OpenAI-compatible auth and the primary model its
+  `model.name`; MCP servers and `QWEN.md` instructions follow in #1.
+- **`launch-qwen-code.sh`** — what tmux runs. The base has already set the working
   directory (the cloned repo when the agent sets `spec.repository`, else
-  `/workspace`), so it opens that project directly. It also passes `--continue` once
-  the workspace holds a session store, so an agent that is put to sleep and woken —
-  a new pod, and with it a new tmux server — resumes the conversation rather than
-  opening blank.
+  `/workspace`), so it opens that project directly.
 
 One container, running the base entrypoint: resolve the environment, seed config,
 serve. Seeding runs in the agent container rather than an init container because
@@ -43,7 +44,7 @@ Prerequisite: the [`language-operator`](https://github.com/language-operator/lan
 chart must be installed first — it provides the `LanguageAgentRuntime` CRD.
 
 ```bash
-helm install opencode oci://ghcr.io/language-operator/charts/opencode \
+helm install qwen-code oci://ghcr.io/language-operator/charts/qwen-code \
   --namespace language-operator
 ```
 
@@ -55,7 +56,7 @@ kind: LanguageAgent
 metadata:
   name: my-agent
 spec:
-  runtime: opencode
+  runtime: qwen-code
 ```
 
 ## Authentication
@@ -64,19 +65,19 @@ The runtime sets `auth.enabled: true`, so access is gated entirely by the cluste
 OIDC proxy: when the `LanguageCluster` has auth enabled the operator injects an
 oauth2-proxy sidecar in front of the terminal. There is no built-in password — if
 the cluster does not enable auth, the terminal is exposed unauthenticated on its
-ingress. opencode itself reaches the model gateway via the provider config in
-`opencode.jsonc`; no interactive login is needed.
+ingress. Qwen Code itself reaches the model gateway via the provider config the
+emitter seeds; no interactive login is needed.
 
 ## Development
 
 ```bash
-make build      # docker build -t ghcr.io/language-operator/opencode-adapter:latest .
+make build      # docker build -t ghcr.io/language-operator/qwen-code-adapter:latest .
 make test       # build, then run the coding-runtime conformance suite
 make publish    # build and push the image to ghcr.io
 make dev        # build, import into k3s, and upgrade the runtime release (inner loop)
 
 helm lint chart
-helm template opencode chart
+helm template qwen-code chart
 ```
 
 ## CI
