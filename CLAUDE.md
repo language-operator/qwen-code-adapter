@@ -29,9 +29,12 @@ it.
   only place the base version appears.
 - `runtime.json` — the manifest: where config goes, the serving surface, how tmux
   launches the TUI. Owned here: `coding-runtime` has no Qwen Code example to copy.
-- `emit.mjs` — the emitter: normalized config → Qwen Code's settings. Currently a
-  placeholder modelled on upstream `examples/minimal`; the real translation (provider,
-  model, MCP servers, `QWEN.md` instructions) is issue #1.
+- `emit.mjs` — the emitter: normalized config → `$QWEN_HOME/settings.json` (the manifest
+  points `QWEN_HOME` at `${STATE_DIR}/qwen-code`). It writes the gateway as Qwen Code's
+  OpenAI auth plus the primary model, owning those four keys only, since Qwen keeps its
+  own state in the same file. Without a selected auth type the TUI opens on a provider
+  picker that swallows keystrokes, and the conformance suite fails. MCP servers and
+  `QWEN.md` instructions are issue #1.
 - `launch-qwen-code.sh` — what tmux runs: `qwen` in the project directory. Resuming a
   slept agent's conversation is not handled yet (issue #1).
 - `chart/` — the Helm chart registering the cluster-scoped `LanguageAgentRuntime` named

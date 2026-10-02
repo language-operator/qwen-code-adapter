@@ -8,8 +8,8 @@ It builds the runtime image and the Helm chart that registers the `qwen-code`
 inside tmux and is fronted by an xterm.js / WebSocket terminal in the browser, so
 working with the agent feels like a real terminal session.
 
-> **Status:** renamed, not yet functional. The image installs Qwen Code, but the
-> emitter does not yet translate the operator's config into Qwen Code's settings —
+> **Status:** early. The TUI talks to the model gateway, but MCP tools and agent
+> instructions are not wired yet —
 > that is [#1](https://github.com/language-operator/qwen-code-adapter/issues/1).
 
 ## Architecture
@@ -21,10 +21,11 @@ keepalive), `tini`, and the ETL that turns the operator's `/etc/agent/config.yam
 into a normalized config. What lives here is the three files that describe Qwen Code
 to it:
 
-- **`runtime.json`** — the manifest: where config goes (`$STATE_DIR/qwen-code`),
-  the serving surface, and how tmux launches the TUI.
-- **`emit.mjs`** — the emitter: normalized config → Qwen Code's settings (provider,
-  model, MCP servers, `QWEN.md` instructions). A placeholder until #1.
+- **`runtime.json`** — the manifest: where config goes (`QWEN_HOME`, set to
+  `$STATE_DIR/qwen-code`), the serving surface, and how tmux launches the TUI.
+- **`emit.mjs`** — the emitter: normalized config → `$QWEN_HOME/settings.json`. The
+  gateway becomes Qwen Code's OpenAI-compatible auth and the primary model its
+  `model.name`; MCP servers and `QWEN.md` instructions follow in #1.
 - **`launch-qwen-code.sh`** — what tmux runs. The base has already set the working
   directory (the cloned repo when the agent sets `spec.repository`, else
   `/workspace`), so it opens that project directly.

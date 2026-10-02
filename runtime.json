@@ -4,7 +4,7 @@
   "displayName": "Qwen Code",
   "role": "main",
   "requires": { "codingRuntime": ">=0.1.2 <1.0.0" },
-  "env": { "QWEN_CODE_CONFIG_DIR": "${STATE_DIR}/qwen-code" },
+  "env": { "QWEN_HOME": "${STATE_DIR}/qwen-code" },
   "preflight": [{ "path": "${STATE_DIR}/qwen-code", "mode": "700" }],
   "config": { "emitter": { "type": "module", "path": "/opt/adapter/emit.mjs" } },
   "serve": { "surface": "terminal", "port": 8080, "originGuard": true },
