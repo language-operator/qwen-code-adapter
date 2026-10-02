@@ -1,11 +1,12 @@
 # CLAUDE.md
 
-Guidance for working in the `opencode-adapter` repository.
+Guidance for working in the `qwen-code-adapter` repository. It was created from the
+`opencode-adapter` template.
 
 ## What this is
 
 A [Language Operator](https://github.com/language-operator) **runtime** that runs the
-**opencode** TUI as a Kubernetes workload. The TUI runs inside tmux and is fronted by an
+**Qwen Code** TUI as a Kubernetes workload. The TUI runs inside tmux and is fronted by an
 xterm.js / WebSocket terminal, so working with the agent feels like a real terminal
 session.
 
@@ -13,7 +14,7 @@ It is a **thin layer over
 [`coding-runtime`](https://github.com/language-operator/coding-runtime)**. The base owns
 the OS layer, the web terminal (node-pty over a WebSocket, with a cross-origin guard and
 a keepalive), `tini`, and the ETL that turns the operator's `/etc/agent/config.yaml` into
-a normalized config. This repo adds the opencode CLI plus three files that describe it to
+a normalized config. This repo adds the Qwen Code CLI plus three files that describe it to
 the base.
 
 One container, running the base entrypoint: resolve the environment, seed config, serve.
@@ -23,19 +24,18 @@ it.
 
 ## Key files
 
-- `Dockerfile` — `FROM ${BASE}` plus one `npm install -g opencode-ai`. `ARG BASE` pins
-  the base by **tag and digest**, and is the only place the base version appears.
+- `Dockerfile` — `FROM ${BASE}` plus one `npm install -g @qwen-code/qwen-code`, which
+  installs the `qwen` binary. `ARG BASE` pins the base by **tag and digest**, and is the
+  only place the base version appears.
 - `runtime.json` — the manifest: where config goes, the serving surface, how tmux
-  launches the TUI. **A verbatim copy** of upstream `examples/opencode/runtime.json`.
-- `emit.mjs` — the emitter: normalized config → `opencode.jsonc` (provider, model, MCP
-  servers, instructions). **Also a verbatim copy.** Do not edit either file here; they
-  move with the base, via `/update-dependencies`.
-- `launch-opencode.sh` — what tmux runs. Opens the project directory, and passes
-  `--continue` once the workspace holds a session store so a slept agent resumes instead
-  of opening blank. The guard matters: with nothing to resume, opencode's TUI leaves a
-  placeholder session and shows an unexplained error toast.
+  launches the TUI. Owned here: `coding-runtime` has no Qwen Code example to copy.
+- `emit.mjs` — the emitter: normalized config → Qwen Code's settings. Currently a
+  placeholder modelled on upstream `examples/minimal`; the real translation (provider,
+  model, MCP servers, `QWEN.md` instructions) is issue #1.
+- `launch-qwen-code.sh` — what tmux runs: `qwen` in the project directory. Resuming a
+  slept agent's conversation is not handled yet (issue #1).
 - `chart/` — the Helm chart registering the cluster-scoped `LanguageAgentRuntime` named
-  `opencode`.
+  `qwen-code`.
 - `.github/workflows/` — `test.yaml`, `build-image.yaml`, `release-chart.yaml`.
 
 ## Testing
@@ -44,17 +44,17 @@ it.
   mode. The suite is **extracted from the image under test**, so the checks always match
   the runtime being checked; it runs the container the way the operator does (read-only
   root, uid 1000, all capabilities dropped). Needs Docker.
-- `make lint-chart` — `helm lint chart` plus `helm template opencode chart`.
+- `make lint-chart` — `helm lint chart` plus `helm template qwen-code chart`.
 - There is **no linter and no unit-test suite**. CI correctness is exactly the two
   `test.yaml` jobs: `image-test` and `chart-lint`.
 - Changes to the terminal, the emitter or the manifest are mostly **not** covered by
-  anything local — the conformance suite checks the runtime contract, not opencode's
+  anything local — the conformance suite checks the runtime contract, not Qwen Code's
   behaviour. Say so plainly rather than implying a green build proves more than it does.
 - The PR title must be a conventional commit (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Build & dev deploy
 
-- `make build` — build `ghcr.io/language-operator/opencode-adapter:<git-sha>` + `:latest`.
+- `make build` — build `ghcr.io/language-operator/qwen-code-adapter:<git-sha>` + `:latest`.
 - `make dev` — build, import into local k3s, and `helm upgrade` the runtime (requires the
   `language-operator` chart / `LanguageAgentRuntime` CRD installed first).
 - `make publish` — push image tags to ghcr.io. `make uninstall` — remove the release.
@@ -76,7 +76,7 @@ Two rules the hard way:
   as `main`, which no `requires.codingRuntime` range can satisfy, and which fails the
   conformance suite's own semver check. Released tags only.
 
-Bumping the base, the opencode CLI or the GitHub Actions is `/update-dependencies`, not
+Bumping the base, the Qwen Code CLI or the GitHub Actions is `/update-dependencies`, not
 `/release` — they are separate decisions.
 
 ## Issue-driven workflow
