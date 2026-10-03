@@ -28,15 +28,25 @@ it.
   installs the `qwen` binary. `ARG BASE` pins the base by **tag and digest**, and is the
   only place the base version appears.
 - `runtime.json` — the manifest: where config goes, the serving surface, how tmux
-  launches the TUI. Owned here: `coding-runtime` has no Qwen Code example to copy.
-- `emit.mjs` — the emitter: normalized config → `$QWEN_HOME/settings.json` (the manifest
-  points `QWEN_HOME` at `${STATE_DIR}/qwen-code`). It writes the gateway as Qwen Code's
-  OpenAI auth plus the primary model, owning those four keys only, since Qwen keeps its
-  own state in the same file. Without a selected auth type the TUI opens on a provider
-  picker that swallows keystrokes, and the conformance suite fails. MCP servers and
-  `QWEN.md` instructions are issue #1.
-- `launch-qwen-code.sh` — what tmux runs: `qwen` in the project directory. Resuming a
-  slept agent's conversation is not handled yet (issue #1).
+  launches the TUI, and `task.exec` for task mode (needs base ≥0.1.5). Owned here:
+  `coding-runtime` has no Qwen Code example to copy.
+- `emit.mjs` — the emitter. The manifest points `QWEN_HOME` at `${STATE_DIR}/qwen-code`.
+  - `$QWEN_HOME/settings.json`: gateway auth, `model.name`, `mcpServers`,
+    `tools.approvalMode`. Ownership is **per key**, never whole objects, because Qwen
+    keeps its own state in the same file. Without a selected auth type the TUI opens on
+    a provider picker that swallows keystrokes, and conformance fails.
+  - `$QWEN_HOME/QWEN.md` (persona + instructions, global context) and `task.md`
+    (instructions, the task prompt). Both are written every run, empty when there is
+    nothing to say: the base cannot delete an owned file, so empty is how withdrawn
+    instructions stop applying.
+  - Secrets are `${NAME}` references, which Qwen expands; never resolved values.
+- `launch-qwen-code.sh` — what tmux runs: `qwen --continue`. Unconditional: with no
+  session Qwen just opens a fresh prompt, so opencode's guard is not needed.
+- `launch-qwen-code-task.sh` — the task-mode run: `qwen "<task.md>" --approval-mode
+  yolo`. Exits 2 when there are no instructions; otherwise Qwen's exit code (1 on an API
+  error such as an unknown model) is the run's phase.
+- Approval: `default` (ask) in the terminal, deliberately not Qwen's `auto` classifier,
+  which spends extra gateway calls; `yolo` in task mode only.
 - `chart/` — the Helm chart registering the cluster-scoped `LanguageAgentRuntime` named
   `qwen-code`.
 - `.github/workflows/` — `test.yaml`, `build-image.yaml`, `release-chart.yaml`.
