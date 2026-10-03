@@ -8,9 +8,8 @@ It builds the runtime image and the Helm chart that registers the `qwen-code`
 inside tmux and is fronted by an xterm.js / WebSocket terminal in the browser, so
 working with the agent feels like a real terminal session.
 
-> **Status:** early. The TUI talks to the model gateway, but MCP tools and agent
-> instructions are not wired yet —
-> that is [#1](https://github.com/language-operator/qwen-code-adapter/issues/1).
+> **Status:** feature-complete, not yet released. Dev-cluster acceptance and the
+> v0.1.0 release are tracked separately.
 
 ## Architecture
 
@@ -18,17 +17,29 @@ The image is [`coding-runtime`](https://github.com/language-operator/coding-runt
 plus the Qwen Code CLI (`qwen`). The base owns the OS layer, the web terminal
 (xterm.js over a node-pty WebSocket bridge, with a cross-origin guard and a 25s
 keepalive), `tini`, and the ETL that turns the operator's `/etc/agent/config.yaml`
-into a normalized config. What lives here is the three files that describe Qwen Code
-to it:
+into a normalized config. What lives here is the files that describe Qwen Code to it:
 
 - **`runtime.json`** — the manifest: where config goes (`QWEN_HOME`, set to
-  `$STATE_DIR/qwen-code`), the serving surface, and how tmux launches the TUI.
-- **`emit.mjs`** — the emitter: normalized config → `$QWEN_HOME/settings.json`. The
-  gateway becomes Qwen Code's OpenAI-compatible auth and the primary model its
-  `model.name`; MCP servers and `QWEN.md` instructions follow in #1.
+  `$STATE_DIR/qwen-code`), the serving surface, how tmux launches the TUI, and the
+  command for a task-mode run.
+- **`emit.mjs`** — the emitter. Into `$QWEN_HOME/settings.json`: the gateway as Qwen
+  Code's OpenAI-compatible auth, the primary model, MCP servers (`httpUrl`, with any
+  headers written as `${NAME}` references so tokens stay off disk), and the approval
+  mode. Persona and instructions go to `$QWEN_HOME/QWEN.md`, which Qwen loads as
+  standing context for every session.
 - **`launch-qwen-code.sh`** — what tmux runs. The base has already set the working
   directory (the cloned repo when the agent sets `spec.repository`, else
-  `/workspace`), so it opens that project directly.
+  `/workspace`), so it opens that project directly, with `--continue` so an agent
+  woken from sleep resumes its conversation.
+- **`launch-qwen-code-task.sh`** — the task-mode run (`spec.execution.mode: task`):
+  the agent's instructions as a one-shot prompt, with every tool call approved. Its
+  exit code is the run's result.
+
+**Approval.** In the browser terminal Qwen Code asks before file edits and shell
+commands (`tools.approvalMode: default`; Shift+Tab cycles modes). Qwen's own default,
+an LLM classifier, is not used: every check would be an extra model call through the
+gateway. A task run approves everything, since nobody is there to answer — the pod's
+posture (read-only root, uid 1000, no capabilities) is the boundary.
 
 One container, running the base entrypoint: resolve the environment, seed config,
 serve. Seeding runs in the agent container rather than an init container because
@@ -36,7 +47,7 @@ the operator mounts `/tmp` there only, so the two would share no writable path.
 tmux keeps the session alive across browser reconnects.
 
 The sibling [`claude-code-adapter`](https://github.com/language-operator/claude-code-adapter)
-is the same shape on the same base, swapping the CLI and the three files.
+is the same shape on the same base, swapping the CLI and these files.
 
 ## Install
 

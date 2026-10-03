@@ -10,7 +10,7 @@
 # `requires.codingRuntime` range can satisfy, so every boot would warn about a
 # version mismatch that is not real.
 # -----------------------------------------------------------------------------
-ARG BASE=ghcr.io/language-operator/coding-runtime:0.1.4@sha256:2f31ef9b04e72bec3a4bb79db59a82a4aa74f89538cfc118d75e0a852734b0aa
+ARG BASE=ghcr.io/language-operator/coding-runtime:0.1.6@sha256:318a540d9d062689d3ed6c0de34fb353ff076bb16c5770bcf296398c6e5a5412
 ARG QWEN_CODE_VERSION=0.24.7
 
 FROM ${BASE}
@@ -22,12 +22,16 @@ USER root
 RUN npm install -g --no-audit --no-fund "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" \
     && npm cache clean --force
 
-# runtime.json      — what this adapter is: config dir, serving surface, tmux launch.
-# emit.mjs          — normalized operator config -> Qwen Code settings.
-# launch-qwen-code  — what tmux runs inside the terminal.
+# runtime.json           — what this adapter is: config dir, serving surface,
+#                          tmux launch, task command.
+# emit.mjs               — normalized operator config -> Qwen Code settings,
+#                          QWEN.md and the task prompt.
+# launch-qwen-code       — what tmux runs inside the terminal.
+# launch-qwen-code-task  — the one-shot run for a task-mode agent.
 COPY runtime.json /etc/coding-runtime/runtime.json
 COPY emit.mjs /opt/adapter/emit.mjs
 COPY --chmod=755 launch-qwen-code.sh /usr/local/bin/launch-qwen-code
+COPY --chmod=755 launch-qwen-code-task.sh /usr/local/bin/launch-qwen-code-task
 
 # The operator pins the agent container to uid 1000 with no override, and the
 # base already has a matching passwd entry. Do not create a user here.
